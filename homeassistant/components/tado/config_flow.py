@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import PyTado
-from PyTado.interface import Tado
-import requests.exceptions
+import tadoasync
+from tadoasync import Tado
 import voluptuous as vol
 
 from homeassistant.components import zeroconf
@@ -46,25 +45,27 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """
 
     try:
-        tado = await hass.async_add_executor_job(
-            Tado, data[CONF_USERNAME], data[CONF_PASSWORD]
-        )
-        tado_me = await hass.async_add_executor_job(tado.getMe)
+        tado = Tado(data[CONF_USERNAME], data[CONF_PASSWORD])
+        await tado.login()
+        tado_me = await tado.get_me()
     except KeyError as ex:
         raise InvalidAuth from ex
     except RuntimeError as ex:
         raise CannotConnect from ex
-    except requests.exceptions.HTTPError as ex:
-        if ex.response.status_code > 400 and ex.response.status_code < 500:
-            raise InvalidAuth from ex
+    except tadoasync.exceptions.TadoAuthenticationError as ex:
+        raise InvalidAuth from ex
+    except tadoasync.exceptions.TadoConnectionError as ex:
         raise CannotConnect from ex
+    finally:
+        # Close the connection, we don't need it anymore for this run
+        await tado.close()
 
-    if "homes" not in tado_me or len(tado_me["homes"]) == 0:
+    if not hasattr(tado_me, "homes") or len(tado_me.homes) == 0:
         raise NoHomes
 
-    home = tado_me["homes"][0]
-    unique_id = str(home["id"])
-    name = home["name"]
+    home = tado_me.homes[0]
+    unique_id = str(home.id)
+    name = home.name
 
     return {"title": name, UNIQUE_ID: unique_id}
 
@@ -128,7 +129,7 @@ class TadoConfigFlow(ConfigFlow, domain=DOMAIN):
                 await validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
-            except PyTado.exceptions.TadoWrongCredentialsException:
+            except InvalidAuth:
                 errors["base"] = "invalid_auth"
             except NoHomes:
                 errors["base"] = "no_homes"

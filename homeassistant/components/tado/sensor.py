@@ -55,15 +55,15 @@ def format_condition(condition: str) -> str:
 
 def get_tado_mode(data: dict[str, str]) -> str | None:
     """Return Tado Mode based on Presence attribute."""
-    if "presence" in data:
-        return data["presence"]
+    if data.presence:
+        return data.presence
     return None
 
 
 def get_automatic_geofencing(data: dict[str, str]) -> bool:
     """Return whether Automatic Geofencing is enabled based on Presence Locked attribute."""
-    if "presenceLocked" in data:
-        if data["presenceLocked"]:
+    if data.presence_locked:
+        if data.presence_locked:
             return False
         return True
     return False
@@ -71,10 +71,12 @@ def get_automatic_geofencing(data: dict[str, str]) -> bool:
 
 def get_geofencing_mode(data: dict[str, str]) -> str:
     """Return Geofencing Mode based on Presence and Presence Locked attributes."""
-    tado_mode = data.get("presence", "unknown")
+    tado_mode = "unknown"
+    if data.presence:
+        tado_mode = data.presence
 
-    if "presenceLocked" in data:
-        if data["presenceLocked"]:
+    if data.presence_locked:
+        if data.presence_locked:
             geofencing_switch_mode = "manual"
         else:
             geofencing_switch_mode = "auto"
@@ -88,9 +90,9 @@ HOME_SENSORS = [
     TadoSensorEntityDescription(
         key="outdoor temperature",
         translation_key="outdoor_temperature",
-        state_fn=lambda data: data["outsideTemperature"]["celsius"],
+        state_fn=lambda data: data.outside_temperature.celsius,
         attributes_fn=lambda data: {
-            "time": data["outsideTemperature"]["timestamp"],
+            "time": data.outside_temperature.timestamp,
         },
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -100,9 +102,9 @@ HOME_SENSORS = [
     TadoSensorEntityDescription(
         key="solar percentage",
         translation_key="solar_percentage",
-        state_fn=lambda data: data["solarIntensity"]["percentage"],
+        state_fn=lambda data: data.solar_intensity.percentage,
         attributes_fn=lambda data: {
-            "time": data["solarIntensity"]["timestamp"],
+            "time": data.solar_intensity.timestamp,
         },
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -111,8 +113,8 @@ HOME_SENSORS = [
     TadoSensorEntityDescription(
         key="weather condition",
         translation_key="weather_condition",
-        state_fn=lambda data: format_condition(data["weatherState"]["value"]),
-        attributes_fn=lambda data: {"time": data["weatherState"]["timestamp"]},
+        state_fn=lambda data: format_condition(data.weather_state.value),
+        attributes_fn=lambda data: {"time": data.weather_state.timestamp},
         data_category=SENSOR_DATA_CATEGORY_WEATHER,
     ),
     TadoSensorEntityDescription(
@@ -211,14 +213,14 @@ async def async_setup_entry(
 
     # Create zone sensors
     for zone in zones:
-        zone_type = zone["type"]
+        zone_type = zone.type
         if zone_type not in ZONE_SENSORS:
             _LOGGER.warning("Unknown zone type skipped: %s", zone_type)
             continue
 
         entities.extend(
             [
-                TadoZoneSensor(tado, zone["name"], zone["id"], entity_description)
+                TadoZoneSensor(tado, zone.name, zone.id, entity_description)
                 for entity_description in ZONE_SENSORS[zone_type]
             ]
         )

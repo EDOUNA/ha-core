@@ -92,9 +92,9 @@ def _generate_entities(tado: TadoConnector) -> list:
     entities = []
 
     for zone in tado.zones:
-        if zone["type"] == TYPE_HOT_WATER:
+        if zone.type == TYPE_HOT_WATER:
             entity = create_water_heater_entity(
-                tado, zone["name"], zone["id"], str(zone["name"])
+                tado, zone.name, zone.id, str(zone.name)
             )
             entities.append(entity)
 
@@ -105,12 +105,13 @@ def create_water_heater_entity(tado: TadoConnector, name: str, zone_id: int, zon
     """Create a Tado water heater device."""
     capabilities = tado.get_capabilities(zone_id)
 
-    supports_temperature_control = capabilities["canSetTemperature"]
+    # TODO: Add support for hot water zones without temperature control
+    supports_temperature_control = capabilities.can_set_temperature
 
-    if supports_temperature_control and "temperatures" in capabilities:
-        temperatures = capabilities["temperatures"]
-        min_temp = float(temperatures["celsius"]["min"])
-        max_temp = float(temperatures["celsius"]["max"])
+    if supports_temperature_control and capabilities.temperatures:
+        temperatures = capabilities.temperatures
+        min_temp = float(temperatures.celsius.min)
+        max_temp = float(temperatures.celsius.max)
     else:
         min_temp = None
         max_temp = None

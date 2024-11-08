@@ -43,13 +43,13 @@ class TadoBinarySensorEntityDescription(BinarySensorEntityDescription):
 
 BATTERY_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="battery state",
-    state_fn=lambda data: data["battery_state"] == "LOW",
+    state_fn=lambda data: data.battery_state == "LOW",
     device_class=BinarySensorDeviceClass.BATTERY,
 )
 CONNECTION_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="connection state",
     translation_key="connection_state",
-    state_fn=lambda data: data["connection_state"].get("value", False),
+    state_fn=lambda data: data.connection_state.value,
     device_class=BinarySensorDeviceClass.CONNECTIVITY,
 )
 POWER_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(

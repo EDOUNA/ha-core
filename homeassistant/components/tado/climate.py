@@ -105,7 +105,7 @@ async def async_setup_entry(
     """Set up the Tado climate platform."""
 
     tado = entry.runtime_data
-    entities = await hass.async_add_executor_job(_generate_entities, tado)
+    entities = await _generate_entities(tado)
 
     platform = entity_platform.async_get_current_platform()
 
@@ -124,27 +124,27 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-def _generate_entities(tado: TadoConnector) -> list[TadoClimate]:
+async def _generate_entities(tado: TadoConnector) -> list[TadoClimate]:
     """Create all climate entities."""
     entities = []
     for zone in tado.zones:
-        if zone["type"] in [TYPE_HEATING, TYPE_AIR_CONDITIONING]:
-            entity = create_climate_entity(
-                tado, zone["name"], zone["id"], zone["devices"][0]
+        if zone.type in [TYPE_HEATING, TYPE_AIR_CONDITIONING]:
+            entity = await create_climate_entity(
+                tado, zone.name, zone.id, zone.devices[0]
             )
             if entity:
                 entities.append(entity)
     return entities
 
 
-def create_climate_entity(
+async def create_climate_entity(
     tado: TadoConnector, name: str, zone_id: int, device_info: dict
 ) -> TadoClimate | None:
     """Create a Tado climate entity."""
-    capabilities = tado.get_capabilities(zone_id)
+    capabilities = await tado.get_capabilities(zone_id)
     _LOGGER.debug("Capabilities for zone %s: %s", zone_id, capabilities)
 
-    zone_type = capabilities["type"]
+    zone_type = capabilities.type
     support_flags = (
         ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TARGET_TEMPERATURE
@@ -215,11 +215,12 @@ def create_climate_entity(
     else:
         supported_hvac_modes.append(HVACMode.HEAT)
 
-    if CONST_MODE_HEAT in capabilities:
-        heat_temperatures = capabilities[CONST_MODE_HEAT]["temperatures"]
+    # Check with Tado Devs if this is still applicable
+    # if CONST_MODE_HEAT in capabilities:
+    #    heat_temperatures = capabilities[CONST_MODE_HEAT]["temperatures"]
 
-    if heat_temperatures is None and "temperatures" in capabilities:
-        heat_temperatures = capabilities["temperatures"]
+    if heat_temperatures is None and capabilities.temperatures:
+        heat_temperatures = capabilities.temperatures
 
     if cool_temperatures is None and heat_temperatures is None:
         _LOGGER.debug("Not adding zone %s since it has no temperatures", name)
@@ -233,14 +234,22 @@ def create_climate_entity(
     cool_step = None
 
     if heat_temperatures is not None:
-        heat_min_temp = float(heat_temperatures["celsius"]["min"])
-        heat_max_temp = float(heat_temperatures["celsius"]["max"])
-        heat_step = heat_temperatures["celsius"].get("step", PRECISION_TENTHS)
+        heat_min_temp = float(heat_temperatures.celsius.min)
+        heat_max_temp = float(heat_temperatures.celsius.max)
+        heat_step = (
+            heat_temperatures.celsius.step
+            if heat_temperatures.celsius.step
+            else PRECISION_TENTHS
+        )
 
     if cool_temperatures is not None:
-        cool_min_temp = float(cool_temperatures["celsius"]["min"])
-        cool_max_temp = float(cool_temperatures["celsius"]["max"])
-        cool_step = cool_temperatures["celsius"].get("step", PRECISION_TENTHS)
+        cool_min_temp = float(cool_temperatures.celsius.min)
+        cool_max_temp = float(cool_temperatures.celsius.max)
+        cool_step = (
+            cool_temperatures.celius.step
+            if cool_temperatures.celsius.step
+            else PRECISION_TENTHS
+        )
 
     return TadoClimate(
         tado,
@@ -298,7 +307,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         self._attr_unique_id = f"{zone_type} {zone_id} {tado.home_id}"
 
         self._device_info = device_info
-        self._device_id = self._device_info["shortSerialNo"]
+        self._device_id = self._device_info.short_serial_no
 
         self._ac_device = zone_type == TYPE_AIR_CONDITIONING
         self._attr_hvac_modes = supported_hvac_modes

@@ -154,7 +154,7 @@ class TadoConnector:
                     INSIDE_TEMPERATURE_MEASUREMENT
                     in device.characteristics.capabilities
                 ):
-                    device.TEMP_OFFSET = self.tado.get_device_info(
+                    device.temp_offset = await self.tado.get_device_info(
                         device_short_serial_no, TEMP_OFFSET
                     )
             except RuntimeError:

@@ -68,7 +68,6 @@ from .const import (
     TADO_TO_HA_OFFSET_MAP,
     TADO_TO_HA_SWING_MODE_MAP,
     TADO_VERTICAL_SWING_SETTING,
-    TEMP_OFFSET,
     TYPE_AIR_CONDITIONING,
     TYPE_HEATING,
 )
@@ -613,14 +612,12 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         # Assign offset values to mapped attributes
         for offset_key, attr in TADO_TO_HA_OFFSET_MAP.items():
-            if (
-                self._device_id in self._tado.data["device"]
-                and offset_key
-                in self._tado.data["device"][self._device_id][TEMP_OFFSET]
+            if self._device_id in self._tado.data["device"] and hasattr(
+                self._tado.data["device"][self._device_id].temp_offset, offset_key
             ):
-                self._tado_zone_temp_offset[attr] = self._tado.data["device"][
-                    self._device_id
-                ][TEMP_OFFSET][offset_key]
+                self._tado_zone_temp_offset[attr] = getattr(
+                    self._tado.data["device"][self._device_id].temp_offset, offset_key
+                )
 
         self._current_tado_hvac_mode = self._tado_zone_data.current_hvac_mode
         self._current_tado_hvac_action = self._tado_zone_data.current_hvac_action

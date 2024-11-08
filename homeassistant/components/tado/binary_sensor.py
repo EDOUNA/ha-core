@@ -43,13 +43,13 @@ class TadoBinarySensorEntityDescription(BinarySensorEntityDescription):
 
 BATTERY_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="battery state",
-    state_fn=lambda data: data["batteryState"] == "LOW",
+    state_fn=lambda data: data["battery_state"] == "LOW",
     device_class=BinarySensorDeviceClass.BATTERY,
 )
 CONNECTION_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="connection state",
     translation_key="connection_state",
-    state_fn=lambda data: data.get("connectionState", {}).get("value", False),
+    state_fn=lambda data: data["connection_state"].get("value", False),
     device_class=BinarySensorDeviceClass.CONNECTIVITY,
 )
 POWER_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
@@ -128,7 +128,7 @@ async def async_setup_entry(
 
     # Create device sensors
     for device in devices:
-        if "batteryState" in device:
+        if device.battery_state is not None:
             device_type = TYPE_BATTERY
         else:
             device_type = TYPE_POWER
@@ -142,14 +142,14 @@ async def async_setup_entry(
 
     # Create zone sensors
     for zone in zones:
-        zone_type = zone["type"]
+        zone_type = zone.type
         if zone_type not in ZONE_SENSORS:
             _LOGGER.warning("Unknown zone type skipped: %s", zone_type)
             continue
 
         entities.extend(
             [
-                TadoZoneBinarySensor(tado, zone["name"], zone["id"], entity_description)
+                TadoZoneBinarySensor(tado, zone.name, zone.id, entity_description)
                 for entity_description in ZONE_SENSORS[zone_type]
             ]
         )

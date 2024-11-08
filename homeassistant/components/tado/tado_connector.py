@@ -4,12 +4,13 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
-from PyTado.interface import Tado
 from requests import RequestException
+from tadoasync import Tado
 
 from homeassistant.components.climate import PRESET_AWAY, PRESET_HOME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.util import Throttle
 
@@ -59,32 +60,39 @@ class TadoConnector:
         """Return fallback flag to Smart Schedule."""
         return self._fallback
 
-    def setup(self):
+    async def setup(self):
         """Connect to Tado and fetch the zones."""
-        self.tado = Tado(self._username, self._password)
+        self.tado = Tado(
+            username=self._username,
+            password=self._password,
+            session=async_get_clientsession(self.hass),
+        )
+        await self.tado.login()
+
         # Load zones and devices
-        self.zones = self.tado.get_zones()
-        self.devices = self.tado.get_devices()
-        tado_home = self.tado.get_me()["homes"][0]
-        self.home_id = tado_home["id"]
-        self.home_name = tado_home["name"]
+        self.zones = await self.tado.get_zones()
+        self.devices = await self.tado.get_devices()
+        tado_home = await self.tado.get_me()
+
+        self.home_id = tado_home.homes[0].id
+        self.home_name = tado_home.homes[0].name
 
     def get_mobile_devices(self):
         """Return the Tado mobile devices."""
         return self.tado.get_mobile_devices()
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
+    async def update(self):
         """Update the registered zones."""
-        self.update_devices()
-        self.update_mobile_devices()
-        self.update_zones()
-        self.update_home()
+        await self.update_devices()
+        await self.update_mobile_devices()
+        await self.update_zones()
+        await self.update_home()
 
-    def update_mobile_devices(self) -> None:
+    async def update_mobile_devices(self) -> None:
         """Update the mobile devices."""
         try:
-            mobile_devices = self.get_mobile_devices()
+            mobile_devices = await self.get_mobile_devices()
         except RuntimeError:
             _LOGGER.error("Unable to connect to Tado while updating mobile devices")
             return
@@ -104,7 +112,7 @@ class TadoConnector:
             return
 
         for mobile_device in mobile_devices:
-            self.data["mobile_device"][mobile_device["id"]] = mobile_device
+            self.data["mobile_device"][mobile_device.id] = mobile_device
             _LOGGER.debug(
                 "Dispatching update to %s mobile device: %s",
                 self.home_id,
@@ -116,10 +124,10 @@ class TadoConnector:
             SIGNAL_TADO_MOBILE_DEVICE_UPDATE_RECEIVED.format(self.home_id),
         )
 
-    def update_devices(self):
+    async def update_devices(self):
         """Update the device data from Tado."""
         try:
-            devices = self.tado.get_devices()
+            devices = await self.tado.get_devices()
         except RuntimeError:
             _LOGGER.error("Unable to connect to Tado while updating devices")
             return
@@ -139,14 +147,14 @@ class TadoConnector:
             return
 
         for device in devices:
-            device_short_serial_no = device["shortSerialNo"]
+            device_short_serial_no = device.short_serial_no
             _LOGGER.debug("Updating device %s", device_short_serial_no)
             try:
                 if (
                     INSIDE_TEMPERATURE_MEASUREMENT
-                    in device["characteristics"]["capabilities"]
+                    in device.characteristics.capabilities
                 ):
-                    device[TEMP_OFFSET] = self.tado.get_device_info(
+                    device.TEMP_OFFSET = self.tado.get_device_info(
                         device_short_serial_no, TEMP_OFFSET
                     )
             except RuntimeError:
@@ -171,22 +179,23 @@ class TadoConnector:
                 ),
             )
 
-    def update_zones(self):
+    async def update_zones(self):
         """Update the zone data from Tado."""
         try:
-            zone_states = self.tado.get_zone_states()["zoneStates"]
+            zone_states = await self.tado.get_zone_states()
         except RuntimeError:
             _LOGGER.error("Unable to connect to Tado while updating zones")
             return
 
         for zone in zone_states:
-            self.update_zone(int(zone))
+            for zone_id in zone.zone_states:
+                await self.update_zone(int(zone_id))
 
-    def update_zone(self, zone_id):
+    async def update_zone(self, zone_id):
         """Update the internal data from Tado."""
         _LOGGER.debug("Updating zone %s", zone_id)
         try:
-            data = self.tado.get_zone_state(zone_id)
+            data = await self.tado.get_zone_state(zone_id)
         except RuntimeError:
             _LOGGER.error("Unable to connect to Tado while updating zone %s", zone_id)
             return
@@ -204,11 +213,11 @@ class TadoConnector:
             SIGNAL_TADO_UPDATE_RECEIVED.format(self.home_id, "zone", zone_id),
         )
 
-    def update_home(self):
+    async def update_home(self):
         """Update the home data from Tado."""
         try:
-            self.data["weather"] = self.tado.get_weather()
-            self.data["geofence"] = self.tado.get_home_state()
+            self.data["weather"] = await self.tado.get_weather()
+            self.data["geofence"] = await self.tado.get_home_state()
             dispatcher_send(
                 self.hass,
                 SIGNAL_TADO_UPDATE_RECEIVED.format(self.home_id, "home", "data"),

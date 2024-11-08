@@ -65,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TadoConfigEntry) -> bool
     tadoconnector = TadoConnector(hass, username, password, fallback)
 
     try:
-        await hass.async_add_executor_job(tadoconnector.setup)
+        await tadoconnector.setup()
     except KeyError:
         _LOGGER.error("Failed to login to tado")
         return False
@@ -81,7 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TadoConfigEntry) -> bool
         raise ConfigEntryNotReady from ex
 
     # Do first update
-    await hass.async_add_executor_job(tadoconnector.update)
+    await tadoconnector.update()
 
     # Poll for updates in the background
     entry.async_on_unload(

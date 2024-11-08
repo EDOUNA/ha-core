@@ -6,7 +6,6 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
-import PyTado
 import voluptuous as vol
 
 from homeassistant.components.climate import (

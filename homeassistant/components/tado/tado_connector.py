@@ -232,9 +232,9 @@ class TadoConnector:
         """Return the capabilities of the devices."""
         return self.tado.get_capabilities(zone_id)
 
-    def get_auto_geofencing_supported(self):
+    async def get_auto_geofencing_supported(self):
         """Return whether the Tado Home supports auto geofencing."""
-        return self.tado.get_auto_geofencing_supported()
+        return await self.tado.get_auto_geofencing_supported()
 
     def reset_zone_overlay(self, zone_id):
         """Reset the zone back to the default operation."""
@@ -257,7 +257,7 @@ class TadoConnector:
         self.update_zones()
         self.update_home()
 
-    def set_zone_overlay(
+    async def set_zone_overlay(
         self,
         zone_id=None,
         overlay_mode=None,
@@ -291,7 +291,7 @@ class TadoConnector:
         )
 
         try:
-            self.tado.set_zone_overlay(
+            await self.tado.set_zone_overlay(
                 zone_id,
                 overlay_mode,
                 temperature,
@@ -309,7 +309,7 @@ class TadoConnector:
         except RequestException as exc:
             _LOGGER.error("Could not set zone overlay: %s", exc)
 
-        self.update_zone(zone_id)
+        await self.update_zone(zone_id)
 
     def set_zone_off(self, zone_id, overlay_mode, device_type="HEATING"):
         """Set a zone to off."""

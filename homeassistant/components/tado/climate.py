@@ -34,7 +34,6 @@ from .const import (
     CONST_EXCLUSIVE_OVERLAY_GROUP,
     CONST_FAN_AUTO,
     CONST_FAN_OFF,
-    CONST_MODE_AUTO,
     CONST_MODE_COOL,
     CONST_MODE_HEAT,
     CONST_MODE_OFF,
@@ -250,22 +249,27 @@ async def create_climate_entity(
             else PRECISION_TENTHS
         )
 
+    capabilities = await tado.get_capabilities(zone_id)
+    auto_geofencing_supported = await tado.get_auto_geofencing_supported()
+
     return TadoClimate(
-        tado,
-        name,
-        zone_id,
-        zone_type,
-        supported_hvac_modes,
-        support_flags,
-        device_info,
-        heat_min_temp,
-        heat_max_temp,
-        heat_step,
-        cool_min_temp,
-        cool_max_temp,
-        cool_step,
-        supported_fan_modes,
-        supported_swing_modes,
+        tado=tado,
+        zone_name=name,
+        zone_id=zone_id,
+        zone_type=zone_type,
+        supported_hvac_modes=supported_hvac_modes,
+        support_flags=support_flags,
+        device_info=device_info,
+        capabilities=capabilities,
+        auto_geofencing_supported=auto_geofencing_supported,
+        heat_min_temp=heat_min_temp,
+        heat_max_temp=heat_max_temp,
+        heat_step=heat_step,
+        cool_min_temp=cool_min_temp,
+        cool_max_temp=cool_max_temp,
+        cool_step=cool_step,
+        supported_fan_modes=supported_fan_modes,
+        supported_swing_modes=supported_swing_modes,
     )
 
 
@@ -287,6 +291,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         supported_hvac_modes: list[HVACMode],
         support_flags: ClimateEntityFeature,
         device_info: dict[str, str],
+        capabilities: dict[str, Any],
+        auto_geofencing_supported: bool,
         heat_min_temp: float | None = None,
         heat_max_temp: float | None = None,
         heat_step: float | None = None,
@@ -335,8 +341,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         self._current_tado_vertical_swing = TADO_SWING_OFF
         self._current_tado_horizontal_swing = TADO_SWING_OFF
 
-        capabilities = tado.get_capabilities(zone_id)
         self._current_tado_capabilities = capabilities
+        self._auto_geofencing_supported = auto_geofencing_supported
 
         self._tado_zone_data: PyTado.TadoZone = {}
         self._tado_geofence_data: dict[str, str] | None = None
@@ -422,9 +428,9 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         if (
             self._tado_geofence_data is not None
-            and "presenceLocked" in self._tado_geofence_data
+            and self._tado_geofence_data.presence_locked
         ):
-            if not self._tado_geofence_data["presenceLocked"]:
+            if not self._tado_geofence_data.presence_locked:
                 return PRESET_AUTO
         if self._tado_zone_data.is_away:
             return PRESET_AWAY
@@ -433,7 +439,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     @property
     def preset_modes(self) -> list[str]:
         """Return a list of available preset modes."""
-        if self._tado.get_auto_geofencing_supported():
+        if self._auto_geofencing_supported:
             return SUPPORT_PRESET_AUTO
         return SUPPORT_PRESET_MANUAL
 
@@ -483,21 +489,13 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         self._tado.set_temperature_offset(self._device_id, offset)
 
-    def set_temperature(self, **kwargs: Any) -> None:
+    async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
-        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
+        temperature = kwargs.get(ATTR_TEMPERATURE)
+        if temperature is None:
             return
 
-        if self._current_tado_hvac_mode not in (
-            CONST_MODE_OFF,
-            CONST_MODE_AUTO,
-            CONST_MODE_SMART_SCHEDULE,
-        ):
-            self._control_hvac(target_temp=temperature)
-            return
-
-        new_hvac_mode = CONST_MODE_COOL if self._ac_device else CONST_MODE_HEAT
-        self._control_hvac(target_temp=temperature, hvac_mode=new_hvac_mode)
+        await self._control_hvac(target_temp=temperature)
 
     def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
@@ -671,7 +669,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         elif self._current_tado_hvac_mode == CONST_MODE_HEAT:
             self._target_temp = adjust_temp(self._heat_min_temp, self._heat_max_temp)
 
-    def _control_hvac(
+    async def _control_hvac(
         self,
         hvac_mode: str | None = None,
         target_temp: float | None = None,
@@ -791,7 +789,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
             ):
                 swing = self._current_tado_swing_mode
 
-        self._tado.set_zone_overlay(
+        await self._tado.set_zone_overlay(
             zone_id=self.zone_id,
             overlay_mode=overlay_mode,  # What to do when the period ends
             temperature=temperature_to_send,
@@ -806,12 +804,12 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         )
 
     def _is_valid_setting_for_hvac_mode(self, setting: str) -> bool:
-        return (
-            self._current_tado_capabilities.get(self._current_tado_hvac_mode, {}).get(
-                setting
+        if hasattr(self._current_tado_capabilities, self._current_tado_hvac_mode):
+            hvac_mode_capabilities = getattr(
+                self._current_tado_capabilities, self._current_tado_hvac_mode
             )
-            is not None
-        )
+            return setting in hvac_mode_capabilities
+        return False
 
     def _is_current_setting_supported_by_current_hvac_mode(
         self, setting: str, current_state: str | None

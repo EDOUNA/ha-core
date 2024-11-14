@@ -87,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TadoConfigEntry) -> bool
     entry.async_on_unload(
         async_track_time_interval(
             hass,
-            lambda now: tadoconnector.update(),
+            lambda now: hass.add_job(tadoconnector.update()),
             SCAN_INTERVAL,
         )
     )
@@ -95,7 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TadoConfigEntry) -> bool
     entry.async_on_unload(
         async_track_time_interval(
             hass,
-            lambda now: tadoconnector.update_mobile_devices(),
+            lambda now: hass.add_job(tadoconnector.update_mobile_devices()),
             SCAN_MOBILE_DEVICE_INTERVAL,
         )
     )

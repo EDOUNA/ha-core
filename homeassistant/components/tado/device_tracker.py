@@ -122,7 +122,7 @@ class TadoDeviceTrackerEntity(TrackerEntity):
         self._attr_available = True
         self._active = False
         if device.location is not None and device.location.at_home:
-            _LOGGER.debug("Tado device %s is at home", device.namename)
+            _LOGGER.debug("Tado device %s is at home", device.name)
             self._active = True
         else:
             _LOGGER.debug("Tado device %s is not at home", device.name)

@@ -236,26 +236,23 @@ class TadoConnector:
         """Return whether the Tado Home supports auto geofencing."""
         return await self.tado.get_auto_geofencing_supported()
 
-    def reset_zone_overlay(self, zone_id):
+    async def reset_zone_overlay(self, zone_id):
         """Reset the zone back to the default operation."""
-        self.tado.reset_zone_overlay(zone_id)
-        self.update_zone(zone_id)
+        await self.tado.reset_zone_overlay(zone_id)
+        await self.update_zone(zone_id)
 
-    def set_presence(
-        self,
-        presence=PRESET_HOME,
-    ):
+    async def set_presence(self, presence=PRESET_HOME):
         """Set the presence to home, away or auto."""
         if presence == PRESET_AWAY:
-            self.tado.set_away()
+            await self.tado.set_presence(PRESET_AWAY.upper())
         elif presence == PRESET_HOME:
-            self.tado.set_home()
+            await self.tado.set_presence(PRESET_HOME.upper())
         elif presence == PRESET_AUTO:
-            self.tado.set_auto()
+            await self.tado.set_presence(PRESET_AUTO.upper())
 
         # Update everything when changing modes
-        self.update_zones()
-        self.update_home()
+        await self.update_zones()
+        await self.update_home()
 
     async def set_zone_overlay(
         self,
@@ -311,16 +308,16 @@ class TadoConnector:
 
         await self.update_zone(zone_id)
 
-    def set_zone_off(self, zone_id, overlay_mode, device_type="HEATING"):
+    async def set_zone_off(self, zone_id, overlay_mode, device_type="HEATING"):
         """Set a zone to off."""
         try:
-            self.tado.set_zone_overlay(
+            await self.tado.set_zone_overlay(
                 zone_id, overlay_mode, None, None, device_type, "OFF"
             )
         except RequestException as exc:
             _LOGGER.error("Could not set zone overlay: %s", exc)
 
-        self.update_zone(zone_id)
+        await self.update_zone(zone_id)
 
     def set_temperature_offset(self, device_id, offset):
         """Set temperature offset of device."""

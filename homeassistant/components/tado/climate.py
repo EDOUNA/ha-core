@@ -344,7 +344,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         self._current_tado_capabilities = capabilities
         self._auto_geofencing_supported = auto_geofencing_supported
 
-        self._tado_zone_data: PyTado.TadoZone = {}
+        self._tado_zone_data = {}
         self._tado_geofence_data: dict[str, str] | None = None
 
         self._tado_zone_temp_offset: dict[str, Any] = {}
@@ -415,12 +415,12 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
             return FAN_AUTO
         return None
 
-    def set_fan_mode(self, fan_mode: str) -> None:
+    async def set_fan_mode(self, fan_mode: str) -> None:
         """Turn fan on/off."""
         if self._is_valid_setting_for_hvac_mode(TADO_FANSPEED_SETTING):
-            self._control_hvac(fan_mode=HA_TO_TADO_FAN_MODE_MAP_LEGACY[fan_mode])
+            await self._control_hvac(fan_mode=HA_TO_TADO_FAN_MODE_MAP_LEGACY[fan_mode])
         elif self._is_valid_setting_for_hvac_mode(TADO_FANLEVEL_SETTING):
-            self._control_hvac(fan_mode=HA_TO_TADO_FAN_MODE_MAP[fan_mode])
+            await self._control_hvac(fan_mode=HA_TO_TADO_FAN_MODE_MAP[fan_mode])
 
     @property
     def preset_mode(self) -> str:
@@ -443,9 +443,9 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
             return SUPPORT_PRESET_AUTO
         return SUPPORT_PRESET_MANUAL
 
-    def set_preset_mode(self, preset_mode: str) -> None:
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        self._tado.set_presence(preset_mode)
+        await self._tado.set_presence(preset_mode)
 
     @property
     def target_temperature_step(self) -> float | None:
@@ -463,7 +463,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         # the device is switching states
         return self._tado_zone_data.target_temp or self._tado_zone_data.current_temp
 
-    def set_timer(
+    async def set_timer(
         self,
         temperature: float,
         time_period: int | None = None,
@@ -471,7 +471,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     ):
         """Set the timer on the entity, and temperature if supported."""
 
-        self._control_hvac(
+        await self._control_hvac(
             hvac_mode=CONST_MODE_HEAT,
             target_temp=temperature,
             duration=time_period,
@@ -497,9 +497,9 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         await self._control_hvac(target_temp=temperature)
 
-    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    async def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
-        self._control_hvac(hvac_mode=HA_TO_TADO_HVAC_MODE_MAP[hvac_mode])
+        await self._control_hvac(hvac_mode=HA_TO_TADO_HVAC_MODE_MAP[hvac_mode])
 
     @property
     def available(self) -> bool:
@@ -565,7 +565,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         )
         return state_attr
 
-    def set_swing_mode(self, swing_mode: str) -> None:
+    async def set_swing_mode(self, swing_mode: str) -> None:
         """Set swing modes for the device."""
         vertical_swing = None
         horizontal_swing = None
@@ -597,7 +597,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
             if self._is_valid_setting_for_hvac_mode(TADO_HORIZONTAL_SWING_SETTING):
                 horizontal_swing = TADO_SWING_ON
 
-        self._control_hvac(
+        await self._control_hvac(
             swing_mode=swing,
             vertical_swing=vertical_swing,
             horizontal_swing=horizontal_swing,
@@ -716,7 +716,9 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
             _LOGGER.debug(
                 "Switching to OFF for zone %s (%d)", self.zone_name, self.zone_id
             )
-            self._tado.set_zone_off(self.zone_id, CONST_OVERLAY_MANUAL, self.zone_type)
+            await self._tado.set_zone_off(
+                self.zone_id, CONST_OVERLAY_MANUAL, self.zone_type
+            )
             return
 
         if self._current_tado_hvac_mode == CONST_MODE_SMART_SCHEDULE:
@@ -725,7 +727,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
                 self.zone_name,
                 self.zone_id,
             )
-            self._tado.reset_zone_overlay(self.zone_id)
+            await self._tado.reset_zone_overlay(self.zone_id)
             return
 
         overlay_mode = decide_overlay_mode(

@@ -1,9 +1,18 @@
 """The sensor tests for the tado platform."""
 
+import logging
+
+import aioresponses
+from tadoasync import Tado
+
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
 from .util import async_init_integration
+
+from tests.components.tado.util_new import async_init_integration_second
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def test_air_con_create_binary_sensors(hass: HomeAssistant) -> None:
@@ -60,10 +69,15 @@ async def test_water_heater_create_binary_sensors(hass: HomeAssistant) -> None:
     assert state.state == STATE_ON
 
 
-async def test_home_create_binary_sensors(hass: HomeAssistant) -> None:
+async def test_home_create_binary_sensors(
+    hass: HomeAssistant, python_tado: Tado, responses: aioresponses
+) -> None:
     """Test creation of home binary sensors."""
 
-    await async_init_integration(hass)
+    await async_init_integration_second(hass, python_tado, responses)
+
+    for state in hass.states.async_all():
+        _LOGGER.debug("Entity ID: %s, State: %s", state.entity_id, state.state)
 
     state = hass.states.get("binary_sensor.wr1_connection_state")
     assert state.state == STATE_ON

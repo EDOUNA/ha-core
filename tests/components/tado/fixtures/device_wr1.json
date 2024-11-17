@@ -1,4 +1,5 @@
-{
+
+[{
   "deviceType": "WR02",
   "currentFwVersion": "59.4",
   "accessPointWiFi": {
@@ -15,3 +16,4 @@
   },
   "shortSerialNo": "WR1"
 }
+]

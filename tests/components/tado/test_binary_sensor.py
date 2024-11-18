@@ -54,12 +54,15 @@ async def test_heater_create_binary_sensors(hass: HomeAssistant) -> None:
     assert state.state == STATE_OFF
 
 
-async def test_water_heater_create_binary_sensors(hass: HomeAssistant) -> None:
+async def test_water_heater_create_binary_sensors(
+    hass: HomeAssistant, python_tado: Tado, responses: aioresponses
+) -> None:
     """Test creation of water heater sensors."""
 
-    await async_init_integration(hass)
+    await async_init_integration_second(hass, python_tado, responses)
 
     state = hass.states.get("binary_sensor.water_heater_connectivity")
+    _LOGGER.debug("State: %s", state)
     assert state.state == STATE_ON
 
     state = hass.states.get("binary_sensor.water_heater_overlay")
@@ -75,9 +78,6 @@ async def test_home_create_binary_sensors(
     """Test creation of home binary sensors."""
 
     await async_init_integration_second(hass, python_tado, responses)
-
-    for state in hass.states.async_all():
-        _LOGGER.debug("Entity ID: %s, State: %s", state.entity_id, state.state)
 
     state = hass.states.get("binary_sensor.wr1_connection_state")
     assert state.state == STATE_ON

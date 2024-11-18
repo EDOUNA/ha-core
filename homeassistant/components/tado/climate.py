@@ -161,7 +161,8 @@ async def create_climate_entity(
     if zone_type == TYPE_AIR_CONDITIONING:
         # Heat is preferred as it generally has a lower minimum temperature
         for mode in ORDERED_KNOWN_TADO_MODES:
-            if mode not in capabilities:
+            mode_capabilities = getattr(capabilities, mode, None)
+            if mode_capabilities is None:
                 continue
 
             supported_hvac_modes.append(TADO_TO_HA_HVAC_MODE_MAP[mode])
@@ -209,7 +210,8 @@ async def create_climate_entity(
                     TADO_TO_HA_FAN_MODE_MAP, capabilities[mode][TADO_FANLEVEL_SETTING]
                 )
 
-        cool_temperatures = capabilities[CONST_MODE_COOL]["temperatures"]
+        if capabilities.cool is not None:
+            cool_temperatures = capabilities.cool.temperatures
     else:
         supported_hvac_modes.append(HVACMode.HEAT)
 

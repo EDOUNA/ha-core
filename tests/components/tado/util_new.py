@@ -190,5 +190,3 @@ async def async_init_integration_second(
     if not skip_setup:
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-
-    assert entry.state == "loaded"

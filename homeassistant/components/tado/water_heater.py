@@ -68,7 +68,7 @@ async def async_setup_entry(
     """Set up the Tado water heater platform."""
 
     tado = entry.runtime_data
-    entities = await hass.async_add_executor_job(_generate_entities, tado)
+    entities = await _generate_entities(tado)
 
     platform = entity_platform.async_get_current_platform()
 
@@ -87,13 +87,13 @@ async def async_setup_entry(
     )
 
 
-def _generate_entities(tado: TadoConnector) -> list:
+async def _generate_entities(tado: TadoConnector) -> list:
     """Create all water heater entities."""
     entities = []
 
     for zone in tado.zones:
         if zone.type == TYPE_HOT_WATER:
-            entity = create_water_heater_entity(
+            entity = await create_water_heater_entity(
                 tado, zone.name, zone.id, str(zone.name)
             )
             entities.append(entity)
@@ -101,9 +101,11 @@ def _generate_entities(tado: TadoConnector) -> list:
     return entities
 
 
-def create_water_heater_entity(tado: TadoConnector, name: str, zone_id: int, zone: str):
+async def create_water_heater_entity(
+    tado: TadoConnector, name: str, zone_id: int, zone: str
+):
     """Create a Tado water heater device."""
-    capabilities = tado.get_capabilities(zone_id)
+    capabilities = await tado.get_capabilities(zone_id)
 
     # TODO: Add support for hot water zones without temperature control
     supports_temperature_control = capabilities.can_set_temperature

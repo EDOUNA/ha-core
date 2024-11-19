@@ -1,16 +1,16 @@
 """The sensor tests for the tado platform."""
 
 import logging
+from unittest.mock import AsyncMock
 
 import aioresponses
-from tadoasync import Tado
+import pytest
 
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
+from .test_util_tado import async_init_integration_second
 from .util import async_init_integration
-
-from tests.components.tado.util_new import async_init_integration_second
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,10 +33,12 @@ async def test_air_con_create_binary_sensors(hass: HomeAssistant) -> None:
     assert state.state == STATE_OFF
 
 
-async def test_heater_create_binary_sensors(hass: HomeAssistant) -> None:
+async def test_heater_create_binary_sensors(
+    hass: HomeAssistant, responses: aioresponses
+) -> None:
     """Test creation of heater sensors."""
 
-    await async_init_integration(hass)
+    await async_init_integration_second(hass, responses)
 
     state = hass.states.get("binary_sensor.baseboard_heater_power")
     assert state.state == STATE_ON
@@ -55,29 +57,38 @@ async def test_heater_create_binary_sensors(hass: HomeAssistant) -> None:
 
 
 async def test_water_heater_create_binary_sensors(
-    hass: HomeAssistant, python_tado: Tado, responses: aioresponses
+    hass: HomeAssistant,
+    setup_tado_integration: None,  # Fixture ensures the integration is set up
+    mock_tado_client: AsyncMock,  # Mocked Tado client
 ) -> None:
     """Test creation of water heater sensors."""
 
-    await async_init_integration_second(hass, python_tado, responses)
-
+    # Check the state of the water heater connectivity sensor
     state = hass.states.get("binary_sensor.water_heater_connectivity")
-    _LOGGER.debug("State: %s", state)
+    _LOGGER.debug("Connectivity State: %s", state)
+
     assert state.state == STATE_ON
 
+    # Check the state of the water heater overlay sensor
     state = hass.states.get("binary_sensor.water_heater_overlay")
+    _LOGGER.debug("Overlay State: %s", state)
+
     assert state.state == STATE_OFF
 
+    # Check the state of the water heater power sensor
     state = hass.states.get("binary_sensor.water_heater_power")
+    _LOGGER.debug("Power State: %s", state)
+
     assert state.state == STATE_ON
 
 
+@pytest.mark.asyncio
 async def test_home_create_binary_sensors(
-    hass: HomeAssistant, python_tado: Tado, responses: aioresponses
+    hass: HomeAssistant, responses: aioresponses
 ) -> None:
     """Test creation of home binary sensors."""
 
-    await async_init_integration_second(hass, python_tado, responses)
+    await async_init_integration_second(hass, responses)
 
     state = hass.states.get("binary_sensor.wr1_connection_state")
     assert state.state == STATE_ON

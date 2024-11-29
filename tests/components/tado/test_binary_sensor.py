@@ -1,7 +1,6 @@
 """The sensor tests for the tado platform."""
 
 import logging
-from unittest.mock import AsyncMock
 
 import aioresponses
 import pytest
@@ -9,7 +8,6 @@ import pytest
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
-from .test_util_tado import async_init_integration_second
 from .util import async_init_integration
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,9 +55,7 @@ async def test_heater_create_binary_sensors(
 
 
 async def test_water_heater_create_binary_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,  # Fixture ensures the integration is set up
-    mock_tado_client: AsyncMock,  # Mocked Tado client
+    hass: HomeAssistant, init_tado_integration_with_mock
 ) -> None:
     """Test creation of water heater sensors."""
 

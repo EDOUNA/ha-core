@@ -1,205 +1,137 @@
-"""Asynchronous Python client for Tado."""
-
+from collections.abc import Generator
 import logging
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
-from aioresponses import aioresponses
+import orjson
 import pytest
+from tadoasync.models import (
+    Capabilities,
+    Device,
+    GetMe,
+    HomeState,
+    MobileDevice,
+    Weather,
+    Zone,
+    ZoneState,
+)
 
-from homeassistant.components.tado import DOMAIN
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
-
-from tests.common import MockConfigEntry, load_json_value_fixture
+from tests.common import MockConfigEntry, load_fixture
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@pytest.fixture
-async def init_tado_integration_with_mock(hass: HomeAssistant):
-    """Initialize the Tado integration with a mocked client."""
+ZONE_FIXTURES = {
+    6: {
+        "state": "tado/smartac4.with_fanlevel.json",
+        "capabilities": "tado/zone_with_fanlevel_horizontal_vertical_swing.json",
+    },
+    5: {
+        "state": "tado/smartac3.with_swing.json",
+        "capabilities": "tado/zone_with_swing_capabilities.json",
+    },
+    4: {
+        "state": "tado/tadov2.water_heater.heating.json",
+        "capabilities": "tado/water_heater_zone_capabilities.json",
+    },
+    3: {
+        "state": "tado/smartac3.cool_mode.json",
+        "capabilities": "tado/zone_capabilities.json",
+    },
+    2: {
+        "state": "tado/tadov2.water_heater.auto_mode.json",
+        "capabilities": "tado/water_heater_zone_capabilities.json",
+    },
+    1: {
+        "state": "tado/tadov2.heating.manual_mode.json",
+        "capabilities": "tado/tadov2.zone_capabilities.json",
+    },
+}
+
+
+def get_zone_fixture(zone_id: int, fixture_type: str) -> AsyncMock:
+    """Return mocked zone fixture (state or capabilities) based on the zone ID and type."""
+    _LOGGER.debug("Erwin: get_zone_fixture(%s, %s)", zone_id, fixture_type)
+    if zone_id not in ZONE_FIXTURES:
+        raise ValueError(f"Unknown zone ID: {zone_id}")
+    if fixture_type not in ZONE_FIXTURES[zone_id]:
+        raise ValueError(f"Unknown fixture type: {fixture_type}")
+
+    if fixture_type == "state":
+        return AsyncMock(
+            return_value=ZoneState.from_json(
+                load_fixture(ZONE_FIXTURES[zone_id][fixture_type])
+            )
+        )
+
+    return AsyncMock(
+        return_value=Capabilities.from_json(
+            load_fixture(ZONE_FIXTURES[zone_id][fixture_type])
+        )
+    )
+
+
+@pytest.fixture(name="mock_tado_client")
+def mock_tado_client() -> Generator[AsyncMock, None, None]:
+    """Mock the Tado client."""
     with patch(
         "homeassistant.components.tado.tado_connector.Tado", autospec=True
     ) as mock_tado_class:
         mock_tado = mock_tado_class.return_value
-        mock_tado.login.return_value = None
-        await async_init_tado_integration(hass)
+
+        mock_tado.get_me.return_value = GetMe.from_json(load_fixture("tado/me.json"))
+        mock_tado.get_weather.return_value = Weather.from_json(
+            load_fixture("tado/weather.json")
+        )
+        mock_tado.get_home_state.return_value = HomeState.from_json(
+            load_fixture("tado/home_state.json")
+        )
+
+        # Load the devices from the fixture
+        mock_tado.get_devices.return_value = [
+            Device.from_dict(device)
+            for device in orjson.loads(load_fixture("tado/devices.json"))
+        ]
+
+        # Load the mobile devices, in the same way
+        mock_tado.get_mobile_devices.return_value = [
+            MobileDevice.from_dict(mobile_device)
+            for mobile_device in orjson.loads(load_fixture("tado/mobile_devices.json"))
+        ]
+
+        # TODO: seems like this isn't properly loaded
+        mock_tado.get_zones.return_value = [
+            Zone.from_dict(zone)
+            for zone in orjson.loads(load_fixture("tado/zones.json"))
+        ]
+
+        mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
+            zone_id, "state"
+        )
+        mock_tado.get_capabilities.side_effect = lambda zone_id: get_zone_fixture(
+            zone_id, "capabilities"
+        )
+        # TODO: fix this later
+        # mock_tado.get_device_info.return_value = Device.from_json(
+        #     load_fixture("tado/device_temp_offset.json")
+        # )
+
+        yield mock_tado
 
 
-async def async_init_tado_integration(
-    hass: HomeAssistant,
-    skip_setup: bool = False,
-):
-    """Set up the tado integration in Home Assistant."""
-
-    token_fixture = "tado/token.json"
-    devices_fixture = "tado/devices.json"
-    mobile_devices_fixture = "tado/mobile_devices.json"
-    me_fixture = "tado/me.json"
-    weather_fixture = "tado/weather.json"
-    home_state_fixture = "tado/home_state.json"
-    zones_fixture = "tado/zones.json"
-    zone_states_fixture = "tado/zone_states.json"
-
-    # WR1 Device
-    device_wr1_fixture = "tado/device_wr1.json"
-
-    # Smart AC with fanLevel, Vertical and Horizontal swings
-    zone_6_state_fixture = "tado/smartac4.with_fanlevel.json"
-    zone_6_capabilities_fixture = (
-        "tado/zone_with_fanlevel_horizontal_vertical_swing.json"
+@pytest.fixture
+def mock_config_entry() -> MockConfigEntry:
+    """Mock a config entry for the Tado integration."""
+    return MockConfigEntry(
+        domain="tado",
+        data={"username": "mock_user", "password": "mock_password"},
+        options={"fallback": "NEXT_TIME_BLOCK"},
     )
 
-    # Smart AC with Swing
-    zone_5_state_fixture = "tado/smartac3.with_swing.json"
-    zone_5_capabilities_fixture = "tado/zone_with_swing_capabilities.json"
 
-    # Water Heater 2
-    zone_4_state_fixture = "tado/tadov2.water_heater.heating.json"
-    zone_4_capabilities_fixture = "tado/water_heater_zone_capabilities.json"
-
-    # Smart AC
-    zone_3_state_fixture = "tado/smartac3.cool_mode.json"
-    zone_3_capabilities_fixture = "tado/zone_capabilities.json"
-
-    # Water Heater
-    zone_2_state_fixture = "tado/tadov2.water_heater.auto_mode.json"
-    zone_2_capabilities_fixture = "tado/water_heater_zone_capabilities.json"
-
-    # Tado V2 with manual heating
-    zone_1_state_fixture = "tado/tadov2.heating.manual_mode.json"
-    zone_1_capabilities_fixture = "tado/tadov2.zone_capabilities.json"
-
-    # Device Temp Offset
-    device_temp_offset = "tado/device_temp_offset.json"
-
-    # Zone Default Overlay
-    zone_def_overlay = "tado/zone_default_overlay.json"
-
-    with aioresponses() as m:
-        m.post(
-            "https://auth.tado.com/oauth/token",
-            payload=load_json_value_fixture(token_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/me", payload=load_json_value_fixture(me_fixture)
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/weather",
-            payload=load_json_value_fixture(weather_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/state",
-            payload=load_json_value_fixture(home_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/devices",
-            payload=load_json_value_fixture(devices_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/mobileDevices",
-            payload=load_json_value_fixture(mobile_devices_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/devices/WR1/",
-            payload=load_json_value_fixture(device_wr1_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/devices/WR1/temperatureOffset",
-            payload=load_json_value_fixture(device_temp_offset),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/devices/WR4/temperatureOffset",
-            payload=load_json_value_fixture(device_temp_offset),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones",
-            payload=load_json_value_fixture(zones_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zoneStates",
-            payload=load_json_value_fixture(zone_states_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/6/capabilities",
-            payload=load_json_value_fixture(zone_6_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/5/capabilities",
-            payload=load_json_value_fixture(zone_5_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/4/capabilities",
-            payload=load_json_value_fixture(zone_4_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/3/capabilities",
-            payload=load_json_value_fixture(zone_3_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/2/capabilities",
-            payload=load_json_value_fixture(zone_2_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/1/capabilities",
-            payload=load_json_value_fixture(zone_1_capabilities_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/1/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/2/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/3/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/4/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/5/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/6/defaultOverlay",
-            payload=load_json_value_fixture(zone_def_overlay),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/6/state",
-            payload=load_json_value_fixture(zone_6_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/5/state",
-            payload=load_json_value_fixture(zone_5_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/4/state",
-            payload=load_json_value_fixture(zone_4_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/3/state",
-            payload=load_json_value_fixture(zone_3_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/2/state",
-            payload=load_json_value_fixture(zone_2_state_fixture),
-        )
-        m.get(
-            "https://my.tado.com/api/v2/homes/1/zones/1/state",
-            payload=load_json_value_fixture(zone_1_state_fixture),
-        )
-
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={CONF_USERNAME: "mock", CONF_PASSWORD: "mock"},
-            options={"fallback": "NEXT_TIME_BLOCK"},
-        )
-        entry.add_to_hass(hass)
-
-        if not skip_setup:
-            await hass.config_entries.async_setup(entry.entry_id)
-            await hass.async_block_till_done()
+@pytest.fixture(name="setup_tado_integration")
+async def setup_tado_integration(hass, mock_tado_client, mock_config_entry):
+    """Fixture to set up the Tado integration."""
+    _LOGGER.debug("Erwin: setup_tado_integration")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()

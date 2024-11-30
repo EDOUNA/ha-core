@@ -48,7 +48,7 @@ def get_zone_fixture(zone_id: int, fixture_type: str) -> AsyncMock:
     return AsyncMock(return_value=load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
 
 
-@pytest.fixture
+@pytest.fixture(name="mock_tado_client")
 def mock_tado_client() -> Generator[AsyncMock, None, None]:
     """Mock the Tado client."""
     with patch(
@@ -93,16 +93,10 @@ def mock_config_entry() -> MockConfigEntry:
     )
 
 
-@pytest.fixture
+@pytest.fixture(name="setup_tado_integration")
 async def setup_tado_integration(hass, mock_tado_client, mock_config_entry):
     """Fixture to set up the Tado integration."""
     _LOGGER.debug("Erwin: setup_tado_integration")
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
-
-
-@pytest.fixture(autouse=True)
-def no_network_calls(monkeypatch):
-    """Ensure no network calls are made during tests."""
-    monkeypatch.delattr("socket.socket")

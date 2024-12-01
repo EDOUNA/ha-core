@@ -608,6 +608,7 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     @callback
     def _async_update_zone_data(self) -> None:
         """Load tado data into zone."""
+        _LOGGER.debug("AVAILABLE ZONES: %s", self._tado.data["zone"])
         self._tado_zone_data = self._tado.data["zone"][self.zone_id]
 
         # Assign offset values to mapped attributes

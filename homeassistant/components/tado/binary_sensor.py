@@ -54,11 +54,15 @@ CONNECTION_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
             "Evaluating connection state for binary sensor Erwin: %s",
             data,
         ),
+        _LOGGER.debug(
+            "Connection state: %s, Connection state value: %s",
+            data.connection_state,
+            data.connection_state.value if data.connection_state else None,
+        ),
         bool(data.connection_state and data.connection_state.value),
-    )[1],  # TODO: Remove this debug line
+    )[2],  # TODO: Remove this debug line
     device_class=BinarySensorDeviceClass.CONNECTIVITY,
 )
-_LOGGER.debug("Connection state ERWIN: %s", CONNECTION_STATE_ENTITY_DESCRIPTION)
 POWER_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="power",
     state_fn=lambda data: data.power == "ON",

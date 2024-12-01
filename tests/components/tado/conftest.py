@@ -10,9 +10,11 @@ from tadoasync.models import (
     GetMe,
     HomeState,
     MobileDevice,
+    TemperatureOffset,
     Weather,
     Zone,
     ZoneState,
+    ZoneStates,
 )
 
 from tests.common import MockConfigEntry, load_fixture
@@ -48,26 +50,21 @@ ZONE_FIXTURES = {
 }
 
 
-def get_zone_fixture(zone_id: int, fixture_type: str) -> AsyncMock:
+def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilities:
     """Return mocked zone fixture (state or capabilities) based on the zone ID and type."""
-    _LOGGER.debug("Erwin: get_zone_fixture(%s, %s)", zone_id, fixture_type)
     if zone_id not in ZONE_FIXTURES:
         raise ValueError(f"Unknown zone ID: {zone_id}")
     if fixture_type not in ZONE_FIXTURES[zone_id]:
         raise ValueError(f"Unknown fixture type: {fixture_type}")
 
     if fixture_type == "state":
-        return AsyncMock(
-            return_value=ZoneState.from_json(
-                load_fixture(ZONE_FIXTURES[zone_id][fixture_type])
-            )
+        _LOGGER.debug(
+            "Erwin: get_zone_fixture: %s",
+            ZoneState.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type])),
         )
+        return ZoneState.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
 
-    return AsyncMock(
-        return_value=Capabilities.from_json(
-            load_fixture(ZONE_FIXTURES[zone_id][fixture_type])
-        )
-    )
+    return Capabilities.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
 
 
 @pytest.fixture(name="mock_tado_client")
@@ -86,23 +83,24 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
             load_fixture("tado/home_state.json")
         )
 
-        # Load the devices from the fixture
         mock_tado.get_devices.return_value = [
             Device.from_dict(device)
             for device in orjson.loads(load_fixture("tado/devices.json"))
         ]
-
-        # Load the mobile devices, in the same way
         mock_tado.get_mobile_devices.return_value = [
             MobileDevice.from_dict(mobile_device)
             for mobile_device in orjson.loads(load_fixture("tado/mobile_devices.json"))
         ]
-
-        # TODO: seems like this isn't properly loaded
         mock_tado.get_zones.return_value = [
             Zone.from_dict(zone)
             for zone in orjson.loads(load_fixture("tado/zones.json"))
         ]
+        zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
+        zone_states = {
+            zone_id: ZoneState.from_dict(zone_state_dict)
+            for zone_id, zone_state_dict in zone_states_json["zoneStates"].items()
+        }
+        mock_tado.get_zone_states.return_value = [ZoneStates(zone_states=zone_states)]
 
         mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "state"
@@ -110,10 +108,26 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
         mock_tado.get_capabilities.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "capabilities"
         )
-        # TODO: fix this later
-        # mock_tado.get_device_info.return_value = Device.from_json(
-        #     load_fixture("tado/device_temp_offset.json")
+
+        # TODO: put in the default overlay
+
+        # TODO: put in the WR1 device
+        # m.get(
+        #     "https://my.tado.com/api/v2/devices/WR1/",
+        #     payload=load_fixture(device_wr1_fixture),
         # )
+
+        # Mock the async get_device_info method
+        async def mock_get_device_info(
+            serial_no: str, attribute: str | None = None
+        ) -> Device | TemperatureOffset:
+            if attribute == "temperatureOffset":
+                response = load_fixture("tado/device_temp_offset.json")
+                return TemperatureOffset.from_json(response)
+            response = load_fixture("tado/device_wr1.json")
+            return Device.from_json(response)
+
+        mock_tado.get_device_info.side_effect = mock_get_device_info
 
         yield mock_tado
 

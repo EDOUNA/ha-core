@@ -49,34 +49,23 @@ BATTERY_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
 CONNECTION_STATE_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="connection state",
     translation_key="connection_state",
-    state_fn=lambda data: (
-        _LOGGER.debug(
-            "Evaluating connection state for binary sensor Erwin: %s",
-            data,
-        ),
-        _LOGGER.debug(
-            "Connection state: %s, Connection state value: %s",
-            data.connection_state,
-            data.connection_state.value if data.connection_state else None,
-        ),
-        bool(data.connection_state and data.connection_state.value),
-    )[2],  # TODO: Remove this debug line
+    state_fn=lambda data: bool(data.connection_state and data.connection_state.value),
     device_class=BinarySensorDeviceClass.CONNECTIVITY,
 )
 POWER_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="power",
-    state_fn=lambda data: data.power == "ON",
+    state_fn=lambda data: data.setting.power == "ON",
     device_class=BinarySensorDeviceClass.POWER,
 )
 LINK_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="link",
-    state_fn=lambda data: data.link == "ONLINE",
+    state_fn=lambda data: data.link.state == "ONLINE",
     device_class=BinarySensorDeviceClass.CONNECTIVITY,
 )
 OVERLAY_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="overlay",
     translation_key="overlay",
-    state_fn=lambda data: data.overlay_active,
+    state_fn=lambda data: data.overlay_active is not None and data.overlay_active,
     attributes_fn=lambda data: (
         {"termination": data.overlay_termination_type} if data.overlay_active else {}
     ),

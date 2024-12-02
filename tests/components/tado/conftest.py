@@ -50,7 +50,7 @@ ZONE_FIXTURES = {
 }
 
 
-def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilities:
+async def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilities:
     """Return mocked zone fixture (state or capabilities) based on the zone ID and type."""
     if zone_id not in ZONE_FIXTURES:
         raise ValueError(f"Unknown zone ID: {zone_id}")
@@ -58,12 +58,7 @@ def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilitie
         raise ValueError(f"Unknown fixture type: {fixture_type}")
 
     if fixture_type == "state":
-        _LOGGER.debug(
-            "Erwin: get_zone_fixture: %s",
-            ZoneState.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type])),
-        )
         return ZoneState.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
-
     return Capabilities.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
 
 
@@ -95,16 +90,35 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
             Zone.from_dict(zone)
             for zone in orjson.loads(load_fixture("tado/zones.json"))
         ]
-        zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
-        zone_states = {
-            zone_id: ZoneState.from_dict(zone_state_dict)
-            for zone_id, zone_state_dict in zone_states_json["zoneStates"].items()
-        }
-        mock_tado.get_zone_states.return_value = [ZoneStates(zone_states=zone_states)]
+
+        # TODO: OLD VERSION
+        # zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
+        # zone_states = {
+        #     zone_id: ZoneState.from_dict(zone_state_dict)
+        #     for zone_id, zone_state_dict in zone_states_json["zoneStates"].items()
+        # }
+
+        # mock_tado.get_zone_states.return_value = [ZoneStates(zone_states=zone_states)]
+
+        # Mock the get_zone_states method
+        async def mock_get_zone_states():
+            zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
+            zone_states = {
+                zone_id: ZoneState.from_dict(zone_state_dict)
+                for zone_id, zone_state_dict in zone_states_json["zoneStates"].items()
+            }
+
+            for zone_state in zone_states.values():
+                await mock_tado.update_zone_data(zone_state)
+
+            return [ZoneStates(zone_states=zone_states)]
+
+        mock_tado.get_zone_states.side_effect = mock_get_zone_states
 
         mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "state"
         )
+
         mock_tado.get_capabilities.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "capabilities"
         )

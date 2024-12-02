@@ -53,16 +53,13 @@ async def test_water_heater_create_binary_sensors(
 ) -> None:
     """Test creation of water heater sensors."""
     state = hass.states.get("binary_sensor.water_heater_connectivity")
-    _LOGGER.debug("Connectivity State: %s", state)
 
     assert state.state == STATE_ON
     state = hass.states.get("binary_sensor.water_heater_overlay")
-    _LOGGER.debug("Overlay State: %s", state)
 
     assert state.state == STATE_OFF
 
     state = hass.states.get("binary_sensor.water_heater_power")
-    _LOGGER.debug("Power State: %s", state)
 
     assert state.state == STATE_ON
 

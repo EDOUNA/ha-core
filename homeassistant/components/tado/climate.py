@@ -246,7 +246,7 @@ async def create_climate_entity(
         cool_min_temp = float(cool_temperatures.celsius.min)
         cool_max_temp = float(cool_temperatures.celsius.max)
         cool_step = (
-            cool_temperatures.celius.step
+            cool_temperatures.celsius.step
             if cool_temperatures.celsius.step
             else PRECISION_TENTHS
         )
@@ -608,7 +608,6 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     @callback
     def _async_update_zone_data(self) -> None:
         """Load tado data into zone."""
-        _LOGGER.debug("AVAILABLE ZONES: %s", self._tado.data["zone"])
         self._tado_zone_data = self._tado.data["zone"][self.zone_id]
 
         # Assign offset values to mapped attributes

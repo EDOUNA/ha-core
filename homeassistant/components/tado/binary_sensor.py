@@ -80,7 +80,7 @@ OPEN_WINDOW_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
 EARLY_START_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="early start",
     translation_key="early_start",
-    state_fn=lambda data: data.preparation,
+    state_fn=lambda data: data.preparation is not None,
     device_class=BinarySensorDeviceClass.POWER,
 )
 

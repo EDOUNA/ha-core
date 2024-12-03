@@ -1,17 +1,23 @@
-"""The sensor tests for the tado platform."""
+"""Test Climate for the Tado platform."""
+
+import logging
+from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
 
 from .util import async_init_integration
 
+_LOGGER = logging.getLogger(__name__)
 
-async def test_air_con(hass: HomeAssistant) -> None:
+
+async def test_air_con(
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
+) -> None:
     """Test creation of aircon climate."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("climate.air_conditioning")
     assert state.state == "cool"
+
+    _LOGGER.info("Erwin: %s", state.attributes)
 
     expected_attributes = {
         "current_humidity": 60.9,

@@ -1,16 +1,15 @@
 """The sensor tests for the tado platform."""
 
-import logging
 from unittest.mock import AsyncMock
 
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
-_LOGGER = logging.getLogger(__name__)
-
 
 async def test_air_con_create_binary_sensors(
-    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
+    hass: HomeAssistant,
+    setup_tado_integration: None,
+    mock_tado_client: AsyncMock,
 ) -> None:
     """Test creation of aircon sensors."""
     state = hass.states.get("binary_sensor.air_conditioning_power")
@@ -47,9 +46,7 @@ async def test_heater_create_binary_sensors(
 
 
 async def test_water_heater_create_binary_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,
-    mock_tado_client: AsyncMock,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of water heater sensors."""
     state = hass.states.get("binary_sensor.water_heater_connectivity")

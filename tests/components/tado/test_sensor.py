@@ -6,9 +6,7 @@ from homeassistant.core import HomeAssistant
 
 
 async def test_air_con_create_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,
-    mock_tado_client: AsyncMock,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of aircon sensors."""
     state = hass.states.get("sensor.air_conditioning_tado_mode")
@@ -25,9 +23,7 @@ async def test_air_con_create_sensors(
 
 
 async def test_home_create_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,
-    mock_tado_client: AsyncMock,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of home sensors."""
     state = hass.states.get("sensor.home_name_outdoor_temperature")
@@ -41,9 +37,7 @@ async def test_home_create_sensors(
 
 
 async def test_heater_create_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,
-    mock_tado_client: AsyncMock,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of heater sensors."""
     state = hass.states.get("sensor.baseboard_heater_tado_mode")
@@ -57,9 +51,7 @@ async def test_heater_create_sensors(
 
 
 async def test_water_heater_create_sensors(
-    hass: HomeAssistant,
-    setup_tado_integration: None,
-    mock_tado_client: AsyncMock,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of water heater sensors."""
     state = hass.states.get("sensor.water_heater_tado_mode")

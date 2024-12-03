@@ -1,15 +1,16 @@
 """The sensor tests for the tado platform."""
 
+from unittest.mock import AsyncMock
+
 from homeassistant.core import HomeAssistant
 
-from .util import async_init_integration
 
-
-async def test_air_con_create_sensors(hass: HomeAssistant) -> None:
+async def test_air_con_create_sensors(
+    hass: HomeAssistant,
+    setup_tado_integration: None,
+    mock_tado_client: AsyncMock,
+) -> None:
     """Test creation of aircon sensors."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("sensor.air_conditioning_tado_mode")
     assert state.state == "HOME"
 
@@ -23,11 +24,12 @@ async def test_air_con_create_sensors(hass: HomeAssistant) -> None:
     assert state.state == "60.9"
 
 
-async def test_home_create_sensors(hass: HomeAssistant) -> None:
+async def test_home_create_sensors(
+    hass: HomeAssistant,
+    setup_tado_integration: None,
+    mock_tado_client: AsyncMock,
+) -> None:
     """Test creation of home sensors."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("sensor.home_name_outdoor_temperature")
     assert state.state == "7.46"
 
@@ -38,11 +40,12 @@ async def test_home_create_sensors(hass: HomeAssistant) -> None:
     assert state.state == "fog"
 
 
-async def test_heater_create_sensors(hass: HomeAssistant) -> None:
+async def test_heater_create_sensors(
+    hass: HomeAssistant,
+    setup_tado_integration: None,
+    mock_tado_client: AsyncMock,
+) -> None:
     """Test creation of heater sensors."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("sensor.baseboard_heater_tado_mode")
     assert state.state == "HOME"
 
@@ -53,10 +56,11 @@ async def test_heater_create_sensors(hass: HomeAssistant) -> None:
     assert state.state == "45.2"
 
 
-async def test_water_heater_create_sensors(hass: HomeAssistant) -> None:
+async def test_water_heater_create_sensors(
+    hass: HomeAssistant,
+    setup_tado_integration: None,
+    mock_tado_client: AsyncMock,
+) -> None:
     """Test creation of water heater sensors."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("sensor.water_heater_tado_mode")
     assert state.state == "HOME"

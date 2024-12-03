@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import orjson
 import pytest
+from tadoasync import Tado
 from tadoasync.models import (
     Capabilities,
     Device,
@@ -16,6 +17,8 @@ from tadoasync.models import (
     ZoneState,
     ZoneStates,
 )
+
+from homeassistant.core import HomeAssistant
 
 from tests.common import MockConfigEntry, load_fixture
 
@@ -50,7 +53,7 @@ ZONE_FIXTURES = {
 }
 
 
-async def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilities:
+def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilities:
     """Return mocked zone fixture (state or capabilities) based on the zone ID and type."""
     if zone_id not in ZONE_FIXTURES:
         raise ValueError(f"Unknown zone ID: {zone_id}")
@@ -109,15 +112,23 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
             }
 
             for zone_state in zone_states.values():
-                await mock_tado.update_zone_data(zone_state)
+                await Tado.update_zone_data(mock_tado, zone_state)
 
-            return [ZoneStates(zone_states=zone_states)]
+            updated_zone_states = ZoneStates(zone_states=zone_states)
+            return [updated_zone_states]
 
         mock_tado.get_zone_states.side_effect = mock_get_zone_states
 
-        mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
-            zone_id, "state"
-        )
+        async def mock_get_zone_state(zone_id: int):
+            zone_state_json = load_fixture(ZONE_FIXTURES[zone_id]["state"])
+            zone_state = ZoneState.from_json(zone_state_json)
+            await Tado.update_zone_data(mock_tado, zone_state)
+            return zone_state
+
+        mock_tado.get_zone_state.side_effect = mock_get_zone_state
+        # mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
+        #     zone_id, "state"
+        # )
 
         mock_tado.get_capabilities.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "capabilities"
@@ -157,7 +168,9 @@ def mock_config_entry() -> MockConfigEntry:
 
 
 @pytest.fixture(name="setup_tado_integration")
-async def setup_tado_integration(hass, mock_tado_client, mock_config_entry):
+async def setup_tado_integration(
+    hass: HomeAssistant, mock_tado_client, mock_config_entry
+):
     """Fixture to set up the Tado integration."""
     _LOGGER.debug("Erwin: setup_tado_integration")
     mock_config_entry.add_to_hass(hass)

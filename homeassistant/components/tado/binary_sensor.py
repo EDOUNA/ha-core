@@ -65,7 +65,7 @@ LINK_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
 OVERLAY_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="overlay",
     translation_key="overlay",
-    state_fn=lambda data: data.overlay_active is not None and data.overlay_active,
+    state_fn=lambda data: data.overlay_active,
     attributes_fn=lambda data: (
         {"termination": data.overlay_termination_type} if data.overlay_active else {}
     ),
@@ -80,7 +80,7 @@ OPEN_WINDOW_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
 EARLY_START_ENTITY_DESCRIPTION = TadoBinarySensorEntityDescription(
     key="early start",
     translation_key="early_start",
-    state_fn=lambda data: data.preparation is not None,
+    state_fn=lambda data: data.preparation,
     device_class=BinarySensorDeviceClass.POWER,
 )
 

@@ -107,7 +107,6 @@ async def create_water_heater_entity(
     """Create a Tado water heater device."""
     capabilities = await tado.get_capabilities(zone_id)
 
-    # TODO: Add support for hot water zones without temperature control
     supports_temperature_control = capabilities.can_set_temperature
 
     if supports_temperature_control and capabilities.temperatures:

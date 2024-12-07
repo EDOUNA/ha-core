@@ -32,7 +32,7 @@ ZONE_FIXTURES = {
     },
     5: {
         "state": "tado/smartac3.with_swing.json",
-        "capabilities": "tado/zone_with_swing_capabilities.json",
+        "capabilities": "tado/zone_with_swing_capabilities_new_ac.json",
     },
     4: {
         "state": "tado/tadov2.water_heater.heating.json",
@@ -60,13 +60,15 @@ def get_zone_fixture(zone_id: int, fixture_type: str) -> ZoneState | Capabilitie
     if fixture_type not in ZONE_FIXTURES[zone_id]:
         raise ValueError(f"Unknown fixture type: {fixture_type}")
 
+    # TODO: not used, can be cleaned up
     if fixture_type == "state":
         return ZoneState.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
+
     return Capabilities.from_json(load_fixture(ZONE_FIXTURES[zone_id][fixture_type]))
 
 
 @pytest.fixture(name="mock_tado_client")
-def mock_tado_client() -> Generator[AsyncMock, None, None]:
+def mock_tado_client() -> Generator[AsyncMock]:
     """Mock the Tado client."""
     with patch(
         "homeassistant.components.tado.tado_connector.Tado", autospec=True
@@ -94,16 +96,6 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
             for zone in orjson.loads(load_fixture("tado/zones.json"))
         ]
 
-        # TODO: OLD VERSION
-        # zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
-        # zone_states = {
-        #     zone_id: ZoneState.from_dict(zone_state_dict)
-        #     for zone_id, zone_state_dict in zone_states_json["zoneStates"].items()
-        # }
-
-        # mock_tado.get_zone_states.return_value = [ZoneStates(zone_states=zone_states)]
-
-        # Mock the get_zone_states method
         async def mock_get_zone_states():
             zone_states_json = orjson.loads(load_fixture("tado/zone_states.json"))
             zone_states = {
@@ -126,9 +118,6 @@ def mock_tado_client() -> Generator[AsyncMock, None, None]:
             return zone_state
 
         mock_tado.get_zone_state.side_effect = mock_get_zone_state
-        # mock_tado.get_zone_state.side_effect = lambda zone_id: get_zone_fixture(
-        #     zone_id, "state"
-        # )
 
         mock_tado.get_capabilities.side_effect = lambda zone_id: get_zone_fixture(
             zone_id, "capabilities"
@@ -172,7 +161,6 @@ async def setup_tado_integration(
     hass: HomeAssistant, mock_tado_client, mock_config_entry
 ):
     """Fixture to set up the Tado integration."""
-    _LOGGER.debug("Erwin: setup_tado_integration")
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()

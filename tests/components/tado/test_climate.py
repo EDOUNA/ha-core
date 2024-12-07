@@ -5,11 +5,10 @@ from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
 
-from .util import async_init_integration
-
 _LOGGER = logging.getLogger(__name__)
 
 
+# TODO: create a seperate test for thew new AC fixture
 async def test_air_con(
     hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
@@ -23,7 +22,7 @@ async def test_air_con(
         "current_humidity": 60.9,
         "current_temperature": 24.8,
         "fan_mode": "auto",
-        "fan_modes": ["auto", "high", "medium", "low"],
+        "fan_modes": ["auto", "off", "low", "medium", "high"],
         "friendly_name": "Air Conditioning",
         "hvac_action": "cooling",
         "hvac_modes": ["off", "auto", "heat", "cool", "heat_cool", "dry", "fan_only"],
@@ -40,11 +39,10 @@ async def test_air_con(
     assert all(item in state.attributes.items() for item in expected_attributes.items())
 
 
-async def test_heater(hass: HomeAssistant) -> None:
+async def test_heater(
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
+) -> None:
     """Test creation of heater climate."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("climate.baseboard_heater")
     assert state.state == "heat"
 
@@ -67,11 +65,10 @@ async def test_heater(hass: HomeAssistant) -> None:
     assert all(item in state.attributes.items() for item in expected_attributes.items())
 
 
-async def test_smartac_with_swing(hass: HomeAssistant) -> None:
+async def test_smartac_with_swing(
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
+) -> None:
     """Test creation of smart ac with swing climate."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("climate.air_conditioning_with_swing")
     assert state.state == "auto"
 
@@ -98,12 +95,9 @@ async def test_smartac_with_swing(hass: HomeAssistant) -> None:
 
 
 async def test_smartac_with_fanlevel_vertical_and_horizontal_swing(
-    hass: HomeAssistant,
+    hass: HomeAssistant, setup_tado_integration: None, mock_tado_client: AsyncMock
 ) -> None:
     """Test creation of smart ac with swing climate."""
-
-    await async_init_integration(hass)
-
     state = hass.states.get("climate.air_conditioning_with_fanlevel")
     assert state.state == "heat"
 

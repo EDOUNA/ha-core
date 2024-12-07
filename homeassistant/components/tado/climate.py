@@ -161,25 +161,28 @@ async def create_climate_entity(
     if zone_type == TYPE_AIR_CONDITIONING:
         # Heat is preferred as it generally has a lower minimum temperature
         for mode in ORDERED_KNOWN_TADO_MODES:
-            mode_capabilities = getattr(capabilities, mode, None)
+            mode_capabilities = getattr(capabilities, mode.lower(), None)
             if mode_capabilities is None:
                 continue
 
             supported_hvac_modes.append(TADO_TO_HA_HVAC_MODE_MAP[mode])
-            if (
-                TADO_SWING_SETTING in capabilities[mode]
-                or TADO_VERTICAL_SWING_SETTING in capabilities[mode]
-                or TADO_VERTICAL_SWING_SETTING in capabilities[mode]
+            mode_capabilities = getattr(capabilities, mode.lower(), None)
+
+            # TODO: this needs to be rewritten, whereas the swing_modes and fan_speeds are deprecated!
+            if getattr(mode_capabilities, "swing_modes", None) and (
+                TADO_SWING_SETTING in mode_capabilities.swing_modes
+                or TADO_VERTICAL_SWING_SETTING in mode_capabilities.swing_modes
+                or TADO_HORIZONTAL_SWING_SETTING in mode_capabilities.swing_modes
             ):
                 support_flags |= ClimateEntityFeature.SWING_MODE
                 supported_swing_modes = []
-                if TADO_SWING_SETTING in capabilities[mode]:
+                if TADO_SWING_SETTING in mode_capabilities.swing_modes:
                     supported_swing_modes.append(
                         TADO_TO_HA_SWING_MODE_MAP[TADO_SWING_ON]
                     )
-                if TADO_VERTICAL_SWING_SETTING in capabilities[mode]:
+                if TADO_VERTICAL_SWING_SETTING in mode_capabilities:
                     supported_swing_modes.append(SWING_VERTICAL)
-                if TADO_HORIZONTAL_SWING_SETTING in capabilities[mode]:
+                if TADO_HORIZONTAL_SWING_SETTING in mode_capabilities:
                     supported_swing_modes.append(SWING_HORIZONTAL)
                 if (
                     SWING_HORIZONTAL in supported_swing_modes
@@ -188,9 +191,10 @@ async def create_climate_entity(
                     supported_swing_modes.append(SWING_BOTH)
                 supported_swing_modes.append(TADO_TO_HA_SWING_MODE_MAP[TADO_SWING_OFF])
 
-            if (
-                TADO_FANSPEED_SETTING not in capabilities[mode]
-                and TADO_FANLEVEL_SETTING not in capabilities[mode]
+            # TODO: deprecated, needs to be replaced!
+            if getattr(mode_capabilities, "fan_speeds", None) and (
+                TADO_FANSPEED_SETTING not in mode_capabilities.fan_speeds
+                and TADO_FANLEVEL_SETTING not in mode_capabilities.fan_speeds
             ):
                 continue
 
@@ -199,25 +203,26 @@ async def create_climate_entity(
             if supported_fan_modes:
                 continue
 
-            if TADO_FANSPEED_SETTING in capabilities[mode]:
+            if getattr(mode_capabilities, "fan_speeds", None):
                 supported_fan_modes = generate_supported_fanmodes(
                     TADO_TO_HA_FAN_MODE_MAP_LEGACY,
-                    capabilities[mode][TADO_FANSPEED_SETTING],
+                    mode_capabilities.fan_speeds,
                 )
-
             else:
+                # TODO: this is basically all the current installation will set.
+                _LOGGER.debug("Erwin: Fan levels: %s", mode_capabilities)
                 supported_fan_modes = generate_supported_fanmodes(
-                    TADO_TO_HA_FAN_MODE_MAP, capabilities[mode][TADO_FANLEVEL_SETTING]
+                    TADO_TO_HA_FAN_MODE_MAP,
+                    TADO_TO_HA_FAN_MODE_MAP,  # Temporary needed to get the correct fan levels
                 )
 
-        if capabilities.cool is not None:
+        if getattr(capabilities, CONST_MODE_COOL.lower(), None):
             cool_temperatures = capabilities.cool.temperatures
     else:
         supported_hvac_modes.append(HVACMode.HEAT)
 
-    # Check with Tado Devs if this is still applicable
-    # if CONST_MODE_HEAT in capabilities:
-    #    heat_temperatures = capabilities[CONST_MODE_HEAT]["temperatures"]
+    if getattr(capabilities, CONST_MODE_HEAT.lower(), None):
+        heat_temperatures = capabilities.heat.temperatures
 
     if heat_temperatures is None and capabilities.temperatures:
         heat_temperatures = capabilities.temperatures
@@ -251,7 +256,6 @@ async def create_climate_entity(
             else PRECISION_TENTHS
         )
 
-    capabilities = await tado.get_capabilities(zone_id)
     auto_geofencing_supported = await tado.get_auto_geofencing_supported()
 
     return TadoClimate(
@@ -427,13 +431,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     @property
     def preset_mode(self) -> str:
         """Return the current preset mode (home, away or auto)."""
-
-        if (
-            self._tado_geofence_data is not None
-            and self._tado_geofence_data.presence_locked
-        ):
-            if not self._tado_geofence_data.presence_locked:
-                return PRESET_AUTO
+        if self._tado_geofence_data and not self._tado_geofence_data.presence_locked:
+            return PRESET_AUTO
         if self._tado_zone_data.is_away:
             return PRESET_AWAY
         return PRESET_HOME

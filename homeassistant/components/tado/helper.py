@@ -1,11 +1,15 @@
 """Helper methods for Tado."""
 
+import logging
+
 from .const import (
     CONST_OVERLAY_TADO_DEFAULT,
     CONST_OVERLAY_TADO_MODE,
     CONST_OVERLAY_TIMER,
 )
 from .tado_connector import TadoConnector
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def decide_overlay_mode(
@@ -53,6 +57,7 @@ def decide_duration(
 
 def generate_supported_fanmodes(tado_to_ha_mapping: dict[str, str], options: list[str]):
     """Return correct list of fan modes or None."""
+    _LOGGER.debug("Supported fan modes: %s", options)
     supported_fanmodes = [
         tado_to_ha_mapping.get(option)
         for option in options

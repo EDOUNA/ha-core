@@ -169,20 +169,26 @@ async def create_climate_entity(
             mode_capabilities = getattr(capabilities, mode.lower(), None)
 
             # TODO: this needs to be rewritten, whereas the swing_modes and fan_speeds are deprecated!
-            if getattr(mode_capabilities, "swing_modes", None) and (
-                TADO_SWING_SETTING in mode_capabilities.swing_modes
-                or TADO_VERTICAL_SWING_SETTING in mode_capabilities.swing_modes
-                or TADO_HORIZONTAL_SWING_SETTING in mode_capabilities.swing_modes
+            if getattr(mode_capabilities, "fan_level", None) and (
+                getattr(mode_capabilities, "vertical_swing", None)
+                or getattr(mode_capabilities, "horizontal_swing", None)
             ):
+                vertical_swing = getattr(mode_capabilities, "vertical_swing", None)
+                horizontal_swing = getattr(mode_capabilities, "horizontal_swing", None)
+
                 support_flags |= ClimateEntityFeature.SWING_MODE
                 supported_swing_modes = []
-                if TADO_SWING_SETTING in mode_capabilities.swing_modes:
+
+                # Can be made less redundant, just kept it in this way to compare with the deprecated code
+                if vertical_swing or horizontal_swing:
                     supported_swing_modes.append(
                         TADO_TO_HA_SWING_MODE_MAP[TADO_SWING_ON]
                     )
-                if TADO_VERTICAL_SWING_SETTING in mode_capabilities:
+
+                # Assign swing modes per type
+                if vertical_swing:
                     supported_swing_modes.append(SWING_VERTICAL)
-                if TADO_HORIZONTAL_SWING_SETTING in mode_capabilities:
+                if horizontal_swing:
                     supported_swing_modes.append(SWING_HORIZONTAL)
                 if (
                     SWING_HORIZONTAL in supported_swing_modes
@@ -210,10 +216,17 @@ async def create_climate_entity(
                 )
             else:
                 # TODO: this is basically all the current installation will set.
-                _LOGGER.debug("Erwin: Fan levels: %s", mode_capabilities)
                 supported_fan_modes = generate_supported_fanmodes(
                     TADO_TO_HA_FAN_MODE_MAP,
-                    TADO_TO_HA_FAN_MODE_MAP,  # Temporary needed to get the correct fan levels
+                    [
+                        "AUTO",
+                        "LEVEL5",
+                        "LEVEL4",
+                        "LEVEL3",
+                        "LEVEL2",
+                        "LEVEL1",
+                        "SILENT",
+                    ],  # Temporary needed to get the correct fan levels
                 )
 
         if getattr(capabilities, CONST_MODE_COOL.lower(), None):
@@ -410,6 +423,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     def fan_mode(self) -> str | None:
         """Return the fan setting."""
         if self._ac_device:
+            # TODO: Continue here next!
+            _LOGGER.debug("Erwin: setting fan mode for AC device")
             if self._is_valid_setting_for_hvac_mode(TADO_FANSPEED_SETTING):
                 return TADO_TO_HA_FAN_MODE_MAP_LEGACY.get(
                     self._current_tado_fan_speed, FAN_AUTO

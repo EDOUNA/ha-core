@@ -16,13 +16,13 @@ async def test_air_con(
     state = hass.states.get("climate.air_conditioning")
     assert state.state == "cool"
 
-    _LOGGER.info("Erwin: %s", state.attributes)
+    _LOGGER.debug("state.attributes: %s", state.attributes)
 
     expected_attributes = {
         "current_humidity": 60.9,
         "current_temperature": 24.8,
         "fan_mode": "auto",
-        "fan_modes": ["auto", "off", "low", "medium", "high"],
+        "fan_modes": ["auto", "high", "medium", "low"],
         "friendly_name": "Air Conditioning",
         "hvac_action": "cooling",
         "hvac_modes": ["off", "auto", "heat", "cool", "heat_cool", "dry", "fan_only"],
@@ -84,7 +84,7 @@ async def test_smartac_with_swing(
         "min_temp": 16.0,
         "preset_mode": "auto",
         "preset_modes": ["away", "home", "auto"],
-        "swing_modes": ["on", "off"],
+        "swing_modes": ["on", "vertical", "horizontal", "both", "off"],
         "supported_features": 441,
         "target_temp_step": 1.0,
         "temperature": 20.0,
@@ -101,11 +101,13 @@ async def test_smartac_with_fanlevel_vertical_and_horizontal_swing(
     state = hass.states.get("climate.air_conditioning_with_fanlevel")
     assert state.state == "heat"
 
+    _LOGGER.debug("state.attributes: %s", state.attributes)
+
     expected_attributes = {
         "current_humidity": 70.9,
         "current_temperature": 24.3,
         "fan_mode": "high",
-        "fan_modes": ["high", "medium", "auto", "low"],
+        "fan_modes": ["auto", "high", "medium", "low"],
         "friendly_name": "Air Conditioning with fanlevel",
         "hvac_action": "heating",
         "hvac_modes": ["off", "auto", "heat", "cool", "heat_cool", "dry", "fan_only"],

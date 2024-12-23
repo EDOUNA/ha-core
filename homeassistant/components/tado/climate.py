@@ -215,7 +215,8 @@ async def create_climate_entity(
                     mode_capabilities.fan_speeds,
                 )
             else:
-                # TODO: this is basically all the current installation will set.
+                # TODO: this is basically all the current installations will set.
+                # This needs to be tested and then properly implemented
                 supported_fan_modes = generate_supported_fanmodes(
                     TADO_TO_HA_FAN_MODE_MAP,
                     [
@@ -423,8 +424,16 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
     def fan_mode(self) -> str | None:
         """Return the fan setting."""
         if self._ac_device:
-            # TODO: Continue here next!
-            _LOGGER.debug("Erwin: setting fan mode for AC device")
+            if self._is_valid_setting_for_hvac_mode("fan_level"):
+                _LOGGER.debug(
+                    "Erwin: TADO_FAN_MAP %s, fan_level: %s",
+                    TADO_TO_HA_FAN_MODE_MAP,
+                    self._current_tado_fan_level,
+                )
+                return TADO_TO_HA_FAN_MODE_MAP.get(
+                    self._current_tado_fan_level, FAN_AUTO
+                )
+            # This seem to be fully deprecated, according to a Tado Dev. Keep this in, until it's fully tested
             if self._is_valid_setting_for_hvac_mode(TADO_FANSPEED_SETTING):
                 return TADO_TO_HA_FAN_MODE_MAP_LEGACY.get(
                     self._current_tado_fan_speed, FAN_AUTO
@@ -778,6 +787,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         fan_speed = None
         fan_level = None
+        # TODO: Continue here! Need to check on the current fan_level.
+        # Speed seems deprecated
         if self.supported_features & ClimateEntityFeature.FAN_MODE:
             if self._is_current_setting_supported_by_current_hvac_mode(
                 TADO_FANSPEED_SETTING, self._current_tado_fan_speed
@@ -822,11 +833,11 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         )
 
     def _is_valid_setting_for_hvac_mode(self, setting: str) -> bool:
-        if hasattr(self._current_tado_capabilities, self._current_tado_hvac_mode):
-            hvac_mode_capabilities = getattr(
-                self._current_tado_capabilities, self._current_tado_hvac_mode
-            )
-            return setting in hvac_mode_capabilities
+        hvac_mode = self._current_tado_hvac_mode.lower()
+        if hasattr(self._current_tado_capabilities, hvac_mode):
+            hvac_mode_capabilities = getattr(self._current_tado_capabilities, hvac_mode)
+            if hasattr(hvac_mode_capabilities, setting):
+                return True
         return False
 
     def _is_current_setting_supported_by_current_hvac_mode(

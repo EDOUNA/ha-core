@@ -72,6 +72,7 @@ async def test_smartac_with_swing(
     state = hass.states.get("climate.air_conditioning_with_swing")
     assert state.state == "auto"
 
+    # TODO: unsure about the current swing mode. Check this in a test
     expected_attributes = {
         "current_humidity": 42.3,
         "current_temperature": 20.9,
@@ -115,7 +116,7 @@ async def test_smartac_with_fanlevel_vertical_and_horizontal_swing(
         "min_temp": 16.0,
         "preset_mode": "auto",
         "preset_modes": ["away", "home", "auto"],
-        "swing_modes": ["vertical", "horizontal", "both", "off"],
+        "swing_modes": ["on", "vertical", "horizontal", "both", "off"],
         "supported_features": 441,
         "target_temp_step": 1.0,
         "temperature": 25.0,

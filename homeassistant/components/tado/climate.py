@@ -425,11 +425,6 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         """Return the fan setting."""
         if self._ac_device:
             if self._is_valid_setting_for_hvac_mode("fan_level"):
-                _LOGGER.debug(
-                    "Erwin: TADO_FAN_MAP %s, fan_level: %s",
-                    TADO_TO_HA_FAN_MODE_MAP,
-                    self._current_tado_fan_level,
-                )
                 return TADO_TO_HA_FAN_MODE_MAP.get(
                     self._current_tado_fan_level, FAN_AUTO
                 )
@@ -645,7 +640,8 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
         self._current_tado_hvac_mode = self._tado_zone_data.current_hvac_mode
         self._current_tado_hvac_action = self._tado_zone_data.current_hvac_action
 
-        if self._is_valid_setting_for_hvac_mode(TADO_FANLEVEL_SETTING):
+        # TODO: run through the other settings and update with constants
+        if self._is_valid_setting_for_hvac_mode("fan_level"):
             self._current_tado_fan_level = self._tado_zone_data.current_fan_level
         if self._is_valid_setting_for_hvac_mode(TADO_FANSPEED_SETTING):
             self._current_tado_fan_speed = self._tado_zone_data.current_fan_speed
@@ -787,8 +783,6 @@ class TadoClimate(TadoZoneEntity, ClimateEntity):
 
         fan_speed = None
         fan_level = None
-        # TODO: Continue here! Need to check on the current fan_level.
-        # Speed seems deprecated
         if self.supported_features & ClimateEntityFeature.FAN_MODE:
             if self._is_current_setting_supported_by_current_hvac_mode(
                 TADO_FANSPEED_SETTING, self._current_tado_fan_speed
